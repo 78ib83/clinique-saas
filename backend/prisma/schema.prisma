@@ -1,0 +1,227 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Clinic {
+  id                 String            @id @default(uuid())
+  name               String
+  address            String?
+  phone              String?
+  email              String?
+  subscriptionStatus SubStatus         @default(TRIAL)
+  subscriptionEnd    DateTime?
+  createdAt          DateTime          @default(now())
+  
+  users              UserClinic[]
+  patients           Patient[]
+  referringDoctors   ReferringDoctor[]
+  healthCenters      HealthCenter[]
+  inventory          InventoryItem[]
+  services           MedicalService[]
+  bills              Bill[]
+  cashSessions       CashSession[]
+}
+
+enum SubStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  name         String
+  passwordHash String
+  clinics      UserClinic[]
+  createdAt    DateTime     @default(now())
+}
+
+model UserClinic {
+  id       String   @id @default(uuid())
+  userId   String
+  clinicId String
+  role     Role     @default(MEDECIN)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clinic   Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clinicId])
+}
+
+enum Role {
+  SUPER_ADMIN_SAAS
+  ADMIN_CLINIC
+  MEDECIN
+  CAISSIER
+  PHARMACIEN
+}
+
+model ReferringDoctor {
+  id             String      @id @default(uuid())
+  clinicId       String
+  name           String
+  phone          String?
+  specialty      String?
+  commissionRate Float       @default(0.0)
+  
+  clinic         Clinic      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patients       Patient[]
+  ristournes     Ristourne[]
+}
+
+model HealthCenter {
+  id             String      @id @default(uuid())
+  clinicId       String
+  name           String
+  phone          String?
+  contactPerson  String?
+  commissionRate Float       @default(0.0)
+  
+  clinic         Clinic      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patients       Patient[]
+  ristournes     Ristourne[]
+}
+
+model Patient {
+  id                String           @id @default(uuid())
+  clinicId          String
+  firstName         String
+  lastName          String
+  phone             String?
+  gender            String?
+  birthDate         DateTime?
+  
+  referringDoctorId String?
+  healthCenterId    String?
+  
+  clinic            Clinic           @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  referringDoctor   ReferringDoctor? @relation(fields: [referringDoctorId], references: [id], onDelete: SetNull)
+  healthCenter      HealthCenter?    @relation(fields: [healthCenterId], references: [id], onDelete: SetNull)
+  
+  consultations     Consultation[]
+  bills             Bill[]
+  createdAt         DateTime         @default(now())
+}
+
+model Consultation {
+  id           String   @id @default(uuid())
+  patientId    String
+  doctorId     String
+  symptoms     String?
+  diagnosis    String?
+  prescription String?
+  tension      String?
+  temperature  Float?
+  weight       Float?
+  createdAt    DateTime @default(now())
+
+  patient      Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+model MedicalService {
+  id          String   @id @default(uuid())
+  clinicId    String
+  name        String
+  price       Float
+  category    String
+  
+  clinic      Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  billItems   BillItem[]
+}
+
+model InventoryItem {
+  id             String   @id @default(uuid())
+  clinicId       String
+  name           String
+  unitPrice      Float
+  quantity       Int
+  alertThreshold Int      @default(5)
+  
+  clinic         Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  billItems      BillItem[]
+}
+
+model CashSession {
+  id            String        @id @default(uuid())
+  clinicId      String
+  cashierId     String
+  openingAmount Float
+  closingAmount Float?
+  status        SessionStatus @default(OUVERTE)
+  openedAt      DateTime      @default(now())
+  closedAt      DateTime?
+
+  clinic        Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  bills         Bill[]
+}
+
+enum SessionStatus {
+  OUVERTE
+  FERMEE
+}
+
+model Bill {
+  id            String        @id @default(uuid())
+  clinicId      String
+  patientId     String
+  cashSessionId String?
+  totalAmount   Float
+  paymentMethod PayMethod     @default(ESPECES)
+  status        BillStatus    @default(PAYEE)
+  createdAt     DateTime      @default(now())
+
+  clinic        Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient       Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  cashSession   CashSession?  @relation(fields: [cashSessionId], references: [id], onDelete: SetNull)
+  items         BillItem[]
+  ristourne     Ristourne?
+}
+
+enum PayMethod {
+  ESPECES
+  MOBILE_MONEY
+  CARTE
+  CHEQUE
+}
+
+enum BillStatus {
+  PAYEE
+  EN_ATTENTE
+  ANNULEE
+}
+
+model BillItem {
+  id              String          @id @default(uuid())
+  billId          String
+  serviceId       String?
+  inventoryId     String?
+  name            String
+  price           Float
+  quantity        Int             @default(1)
+
+  bill            Bill            @relation(fields: [billId], references: [id], onDelete: Cascade)
+  service         MedicalService? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  inventoryItem   InventoryItem?  @relation(fields: [inventoryId], references: [id], onDelete: SetNull)
+}
+
+model Ristourne {
+  id                String           @id @default(uuid())
+  clinicId          String
+  billId            String           @unique
+  referringDoctorId String?
+  healthCenterId    String?
+  amount            Float
+  isPaid            Boolean          @default(false)
+  paidAt            DateTime?
+  createdAt         DateTime         @default(now())
+
+  bill              Bill             @relation(fields: [billId], references: [id], onDelete: Cascade)
+  referringDoctor   ReferringDoctor? @relation(fields: [referringDoctorId], references: [id], onDelete: SetNull)
+  healthCenter      HealthCenter?    @relation(fields: [healthCenterId], references: [id], onDelete: SetNull)
+}
