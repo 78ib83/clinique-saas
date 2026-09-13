@@ -18,13 +18,13 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// 2. Gestion explicite des requêtes preflight OPTIONS pour toutes les routes (corrigé avec '/*')
-app.options('/*', cors());
+// Le middleware cors() gère déjà les requêtes OPTIONS globalement, 
+// pas besoin de app.options('/*', cors()) avec Express v5.
 
-// 3. Parser JSON
+// 2. Parser JSON
 app.use(express.json());
 
-// 4. Routes
+// 3. Routes
 app.use('/api/auth', authRoutes);
 
 app.get('/', (req, res) => {
