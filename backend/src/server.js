@@ -18,8 +18,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// 2. Gestion explicite des requêtes preflight OPTIONS pour toutes les routes
-app.options('*', cors());
+// 2. Gestion explicite des requêtes preflight OPTIONS pour toutes les routes (corrigé avec '/*')
+app.options('/*', cors());
 
 // 3. Parser JSON
 app.use(express.json());
