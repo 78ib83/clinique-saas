@@ -12,6 +12,9 @@ const allowedOrigins = [
   "http://localhost:3000",
 ];
 
+app.use(cors());
+
+/*
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -25,7 +28,7 @@ app.use(
     },
     credentials: true,
   }),
-);
+);*/
 
 app.use(express.json());
 
